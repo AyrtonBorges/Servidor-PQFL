@@ -10,9 +10,19 @@ use App\Http\Controllers\SyncController;
 // })->middleware('auth:sanctum');
 
 
-Route::post('/login', [AuthController::class, 'login']);
+// Route::post('/login', [AuthController::class, 'login']);
 
-Route::middleware('auth:sanctum')->group(function () {
-    Route::post('/logout', [AuthController::class, 'logout']);
-    Route::post('/sync', [SyncController::class, 'sync']);
-});
+// Route::middleware('auth:sanctum')->group(function () {
+//     Route::post('/logout', [AuthController::class, 'logout']);
+//     Route::post('/sync', [SyncController::class, 'sync']);
+// });
+
+Route::post('/login', [AuthController::class, 'login']);
+Route::post('/logout', [AuthController::class, 'logout'])->middleware('auth:sanctum');
+
+
+Route::middleware('auth:sanctum')->get('/sync', [SyncController::class, 'sync']);
+
+
+
+// Route::get('/sync', [SyncController::class, 'sync']);

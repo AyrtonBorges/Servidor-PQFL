@@ -22,5 +22,6 @@ Route::middleware(['auth'])->group(function () {
 
 require __DIR__ . '/auth.php';
 
+Route::prefix('/')->group(base_path('routes/produtor.php'));
 
 Route::middleware('auth:sanctum')->post('/sync', [SyncController::class, 'sync']);

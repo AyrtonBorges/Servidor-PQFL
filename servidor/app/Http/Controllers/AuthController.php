@@ -2,10 +2,9 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Hash;
 use App\Models\User;
+use Illuminate\Support\Facades\Hash;
 
 class AuthController extends Controller
 {
@@ -13,7 +12,7 @@ class AuthController extends Controller
     {
         $request->validate([
             'email' => 'required|email',
-            'password' => 'required',
+            'password' => 'required'
         ]);
 
         $user = User::where('email', $request->email)->first();
@@ -22,14 +21,18 @@ class AuthController extends Controller
             return response()->json(['message' => 'Credenciais inválidas'], 401);
         }
 
-        return response()->json([
-            'token' => $user->createToken('auth_token')->plainTextToken,
-        ]);
+        // Gera um token para o usuário
+        $token = $user->createToken('sync-token')->plainTextToken;
+
+        return response()->json(['token' => $token]);
     }
 
     public function logout(Request $request)
     {
+        // Revoga todos os tokens do usuário
         $request->user()->tokens()->delete();
+
         return response()->json(['message' => 'Logout realizado com sucesso']);
     }
 }
+
