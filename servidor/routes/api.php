@@ -4,6 +4,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\SyncController;
+use App\Http\Controllers\AuthUsuariosController;
 
 // Route::get('/user', function (Request $request) {
 //     return $request->user();
@@ -17,12 +18,10 @@ use App\Http\Controllers\SyncController;
 //     Route::post('/sync', [SyncController::class, 'sync']);
 // });
 
-Route::post('/login', [AuthController::class, 'login']);
-Route::post('/logout', [AuthController::class, 'logout'])->middleware('auth:sanctum');
+Route::post('/usuarios/login', [AuthUsuariosController::class, 'login']);
 
 
 Route::middleware('auth:sanctum')->get('/sync', [SyncController::class, 'sync']);
-
-
+Route::middleware('auth:sanctum')->post('/sync', [SyncController::class, 'sync']);
 
 // Route::get('/sync', [SyncController::class, 'sync']);
