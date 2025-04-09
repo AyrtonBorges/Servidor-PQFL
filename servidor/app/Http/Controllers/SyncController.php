@@ -76,8 +76,23 @@ class SyncController extends Controller
             foreach ($clientTables as $table) {
                 if (isset($clientData[$table]) && is_array($clientData[$table])) {
                     foreach ($clientData[$table] as $item) {
-                        // Supondo que cada registro tenha um campo "id" para identificar o registro
-                        if (isset($item['id'])) {
+                        if ($table === 'tecnicos_de_uma_visita') {
+                            // chave composta
+                            $exists = DB::table($table)
+                                ->where('Tecnico_idTecnico', $item['Tecnico_idTecnico'])
+                                ->where('Visita_id', $item['Visita_id'])
+                                ->first();
+
+                            if ($exists) {
+                                DB::table($table)
+                                    ->where('Tecnico_idTecnico', $item['Tecnico_idTecnico'])
+                                    ->where('Visita_id', $item['Visita_id'])
+                                    ->update($item);
+                            } else {
+                                DB::table($table)->insert($item);
+                            }
+                        } elseif (isset($item['id'])) {
+                            // chave simples com id
                             $exists = DB::table($table)->where('id', $item['id'])->first();
                             if ($exists) {
                                 DB::table($table)->where('id', $item['id'])->update($item);
