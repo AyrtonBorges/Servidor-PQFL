@@ -62,7 +62,7 @@ class SyncController extends Controller
         }
         // Se a requisição for POST, recebe os dados do cliente e os insere/atualiza
         elseif ($request->isMethod('post')) {
-            // Tabelas enviadas pelo cliente: visita, respostadeumaperguntadeumavisita, formulariodeumavisita, tecnicos_de_uma_visita
+
             $clientTables = [
                 'formulariodeumavisita',
                 'visita',
@@ -73,35 +73,100 @@ class SyncController extends Controller
             $clientData = $request->only($clientTables);
 
             Log::info('Dados recebidos do cliente: ' . json_encode($clientData));
-            foreach ($clientTables as $table) {
-                if (isset($clientData[$table]) && is_array($clientData[$table])) {
-                    foreach ($clientData[$table] as $item) {
-                        if ($table === 'tecnicos_de_uma_visita') {
-                            // chave composta
-                            $exists = DB::table($table)
-                                ->where('Tecnico_idTecnico', $item['Tecnico_idTecnico'])
-                                ->where('Visita_id', $item['Visita_id'])
-                                ->first();
 
-                            if ($exists) {
-                                DB::table($table)
-                                    ->where('Tecnico_idTecnico', $item['Tecnico_idTecnico'])
-                                    ->where('Visita_id', $item['Visita_id'])
-                                    ->update($item);
-                            } else {
-                                DB::table($table)->insert($item);
-                            }
-                        } elseif (isset($item['id'])) {
-                            // chave simples com id
-                            $exists = DB::table($table)->where('id', $item['id'])->first();
-                            if ($exists) {
-                                DB::table($table)->where('id', $item['id'])->update($item);
-                            } else {
-                                DB::table($table)->insert($item);
-                            }
+            foreach ($clientTables as $table) {
+                if (!isset($clientData[$table]) || !is_array($clientData[$table])) {
+                    continue;
+                }
+
+                // AGRUPAMENTO ESPECIAL PARA 'respostadeumaperguntadeumavisita'
+                if ($table === 'respostadeumaperguntadeumavisita') {
+                    $agrupadasPorVisita = [];
+
+                    foreach ($clientData[$table] as $item) {
+                        if (!isset($item['id']) || !isset($item['Visita_id'])) {
+                            continue;
+                        }
+
+                        $exists = DB::table($table)->where('id', $item['id'])->first();
+
+                        if ($exists) {
+                            $visitaId = $item['Visita_id'];
+
+                            $agrupadasPorVisita[$visitaId][] = [
+                                'chave_primaria' => $item['id'],
+                                'dados_antigos' => (array) $exists,
+                                'dados_novos' => $item,
+                            ];
                         } else {
                             DB::table($table)->insert($item);
                         }
+                    }
+
+                    // Agora salva 1 pendência por Visita
+                    foreach ($agrupadasPorVisita as $visitaId => $alteracoes) {
+                        DB::table('pendencias_de_sincronizacao')->insert([
+                            'tabela' => $table,
+                            'chave_primaria' => (string) $visitaId,
+                            'dados_antigos' => json_encode(array_column($alteracoes, 'dados_antigos')),
+                            'dados_novos' => json_encode(array_column($alteracoes, 'dados_novos')),
+                            'status' => 'pendente',
+                            'created_at' => now(),
+                            'updated_at' => now()
+                        ]);
+                    }
+
+                    continue;
+                }
+
+                // CHAVE COMPOSTA
+                if ($table === 'tecnicos_de_uma_visita') {
+                    foreach ($clientData[$table] as $item) {
+                        $exists = DB::table($table)
+                            ->where('Tecnico_idTecnico', $item['Tecnico_idTecnico'])
+                            ->where('Visita_id', $item['Visita_id'])
+                            ->first();
+
+                        if ($exists) {
+                            DB::table('pendencias_de_sincronizacao')->insert([
+                                'tabela' => $table,
+                                'chave_primaria' => json_encode([
+                                    'Tecnico_idTecnico' => $item['Tecnico_idTecnico'],
+                                    'Visita_id' => $item['Visita_id'],
+                                ]),
+                                'dados_antigos' => json_encode($exists),
+                                'dados_novos' => json_encode($item),
+                                'status' => 'pendente',
+                                'created_at' => now(),
+                                'updated_at' => now()
+                            ]);
+                        } else {
+                            DB::table($table)->insert($item);
+                        }
+                    }
+                    continue;
+                }
+
+                // CHAVE SIMPLES
+                foreach ($clientData[$table] as $item) {
+                    if (isset($item['id'])) {
+                        $exists = DB::table($table)->where('id', $item['id'])->first();
+
+                        if ($exists) {
+                            DB::table('pendencias_de_sincronizacao')->insert([
+                                'tabela' => $table,
+                                'chave_primaria' => (string) $item['id'],
+                                'dados_antigos' => json_encode($exists),
+                                'dados_novos' => json_encode($item),
+                                'status' => 'pendente',
+                                'created_at' => now(),
+                                'updated_at' => now()
+                            ]);
+                        } else {
+                            DB::table($table)->insert($item);
+                        }
+                    } else {
+                        DB::table($table)->insert($item);
                     }
                 }
             }
